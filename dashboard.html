@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>北京住宅项目户型面宽分析看板</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Hiragino Sans GB',sans-serif;background:#f5f5f0;color:#2c2c2a;font-size:13px;line-height:1.6}
+.header{background:#fff;border-bottom:.5px solid rgba(0,0,0,.08);padding:16px 24px;display:flex;justify-content:space-between;align-items:center}
+.header h1{font-size:15px;font-weight:500}
+.header .subtitle{font-size:12px;color:#888780;margin-top:2px}
+
+/* Filter bar */
+.filters{background:#fff;border-bottom:.5px solid rgba(0,0,0,.08);padding:10px 24px;display:flex;gap:12px;flex-wrap:wrap;align-items:flex-start}
+.filter-group{position:relative;display:flex;flex-direction:column;gap:3px}
+.filter-group>label{font-size:11px;color:#888780;font-weight:500}
+.filter-trigger{font-size:13px;padding:6px 28px 6px 10px;border:.5px solid rgba(0,0,0,.15);border-radius:6px;background:#fff;color:#2c2c2a;min-width:150px;cursor:pointer;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;position:relative;line-height:1.4}
+.filter-trigger::after{content:'';position:absolute;right:8px;top:50%;transform:translateY(-50%);border-left:4px solid transparent;border-right:4px solid transparent;border-top:5px solid #888}
+.filter-trigger.active{border-color:#378ADD}
+.filter-dropdown{display:none;position:absolute;top:100%;left:0;right:0;z-index:100;background:#fff;border:.5px solid rgba(0,0,0,.12);border-radius:8px;margin-top:3px;max-height:200px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,.08);min-width:180px}
+.filter-dropdown.show{display:block}
+.filter-dropdown .search-input{position:sticky;top:0;padding:6px 8px;background:#fff;z-index:1;border-bottom:.5px solid rgba(0,0,0,.06)}
+.filter-dropdown .search-input input{width:100%;padding:5px 8px;border:.5px solid rgba(0,0,0,.12);border-radius:4px;font-size:12px;outline:none}
+.filter-dropdown .all-toggle{padding:6px 10px;font-size:12px;color:#378ADD;cursor:pointer;border-bottom:.5px solid rgba(0,0,0,.06);user-select:none}
+.filter-dropdown .all-toggle:hover{background:#f1efe8}
+.filter-option{display:flex;align-items:center;gap:8px;padding:5px 10px;cursor:pointer;font-size:12px;user-select:none}
+.filter-option:hover{background:#f5f5f0}
+.filter-option input[type=checkbox]{accent-color:#378ADD;cursor:pointer}
+.filter-option .count{margin-left:auto;color:#888;font-size:11px}
+.btn-reset{font-size:12px;padding:6px 12px;border:.5px solid rgba(0,0,0,.15);border-radius:6px;background:transparent;color:#5f5e5a;cursor:pointer;margin-top:15px;white-space:nowrap}
+.btn-reset:hover{background:#f1efe8}
+
+/* Stats bar */
+.stats-bar{background:#fff;border-bottom:.5px solid rgba(0,0,0,.08);padding:8px 24px;font-size:12px;color:#888780;display:flex;justify-content:space-between}
+.stats-bar .info span{color:#2c2c2a;font-weight:500}
+
+/* Container */
+.container{padding:16px 24px;max-width:1400px;margin:0 auto}
+
+/* Metric cards */
+.metrics-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin-bottom:16px}
+.metric-card{background:#f1efe8;border-radius:8px;padding:12px 14px}
+.metric-card .label{font-size:12px;color:#5f5e5a;margin-bottom:2px}
+.metric-card .value{font-size:20px;font-weight:500;color:#2c2c2a}
+.metric-card .detail{font-size:11px;color:#888780;margin-top:1px}
+
+/* Charts */
+.charts-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px}
+@media(max-width:900px){.charts-grid{grid-template-columns:1fr}}
+.chart-card{background:#fff;border:.5px solid rgba(0,0,0,.08);border-radius:12px;padding:14px}
+.chart-card h3{font-size:13px;font-weight:500;color:#2c2c2a;margin-bottom:10px}
+.chart-card .chart-wrap{position:relative;width:100%}
+.chart-card canvas{width:100%!important;max-height:280px}
+.chart-full{grid-column:1/-1}
+
+/* Table */
+.table-card{background:#fff;border:.5px solid rgba(0,0,0,.08);border-radius:12px;padding:14px;overflow-x:auto}
+.table-card h3{font-size:13px;font-weight:500;color:#2c2c2a;margin-bottom:10px}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{background:#f1efe8;color:#5f5e5a;font-weight:500;padding:8px 12px;text-align:left;border-bottom:.5px solid rgba(0,0,0,.08);white-space:nowrap}
+td{padding:6px 12px;border-bottom:.5px solid rgba(0,0,0,.04);color:#2c2c2a;white-space:nowrap}
+tr:hover td{background:#fafaf7}
+.sortable{cursor:pointer;user-select:none;white-space:nowrap;padding:4px 0;display:inline-flex;align-items:center;gap:6px}
+.sortable:hover{background:#e5e3db}
+.sort-arrow{font-size:13px;color:#aaa;width:18px;text-align:center}
+.sort-arrow.asc{color:#378ADD}
+.sort-arrow.desc{color:#378ADD}
+
+/* Column filter icon — bigger click area */
+.filter-icon{margin-left:6px;cursor:pointer;font-size:15px;color:#999;user-select:none;display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:4px;background:transparent}
+.filter-icon:hover,.filter-icon.active{color:#fff;background:#378ADD}
+
+/* Column filter dropdown */
+.col-filter-dropdown{display:none;position:absolute;z-index:200;background:#fff;border:.5px solid rgba(0,0,0,.12);border-radius:8px;margin-top:3px;max-height:220px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,.1);min-width:160px;padding:4px 0}
+.col-filter-dropdown.show{display:block}
+.col-filter-dropdown .cf-all{padding:5px 10px;font-size:12px;color:#378ADD;cursor:pointer;border-bottom:.5px solid rgba(0,0,0,.06);user-select:none;white-space:nowrap}
+.col-filter-dropdown .cf-all:hover{background:#f5f5f0}
+.col-filter-dropdown .cf-item{display:flex;align-items:center;gap:6px;padding:4px 10px;cursor:pointer;font-size:12px;user-select:none;white-space:nowrap}
+.col-filter-dropdown .cf-item:hover{background:#f5f5f0}
+.col-filter-dropdown .cf-item input[type=checkbox]{accent-color:#378ADD;cursor:pointer;margin:0}
+.col-filter-dropdown .cf-item .cf-count{margin-left:auto;color:#888;font-size:11px}
+.tag{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:500}
+.tag-2{background:#e6f1fb;color:#185fa5}
+.tag-3{background:#e1f5ee;color:#0f6e56}
+.tag-4{background:#faeeda;color:#854f0b}
+
+/* 户型图缩略图 */
+.img-thumb{width:60px;height:60px;object-fit:cover;border-radius:4px;cursor:pointer;border:.5px solid rgba(0,0,0,.08);transition:opacity .15s}
+.img-thumb:hover{opacity:.8}
+.img-placeholder{width:60px;height:60px;background:#f1efe8;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:10px;color:#bbb}
+
+/* Lightbox overlay */
+.lightbox{display:none;position:fixed;z-index:9999;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.75);align-items:center;justify-content:center}
+.lightbox.show{display:flex}
+.lightbox img{max-width:90%;max-height:90%;border-radius:4px;box-shadow:0 8px 32px rgba(0,0,0,.3)}
+.lightbox .close{position:absolute;top:20px;right:30px;font-size:32px;color:#fff;cursor:pointer;opacity:.8;line-height:1}
+.lightbox .close:hover{opacity:1}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <h1>北京住宅项目户型面宽分析看板</h1>
+    <div class="subtitle">数据来源：北京住宅项目户型汇总.xlsx · 共 <span id="totalCount">172</span> 条户型记录</div>
+  </div>
+  <button class="btn-reset" onclick="resetAllFilters()" style="margin-top:0">重置全部筛选</button>
+</div>
+
+<div class="filters" id="filterBar"></div>
+
+<div class="stats-bar">
+  <div class="info">当前筛选：<span id="filterLabel">全部数据</span> · 匹配 <span id="matchCount">172</span> 条记录</div>
+  <div style="color:#888">全选/取消：点击第一项「全部」</div>
+</div>
+
+<div class="container">
+  <div class="metrics-grid" id="metricsGrid"></div>
+  <div class="charts-grid">
+    <div class="chart-card"><h3>面宽数量分布</h3><div class="chart-wrap"><canvas id="chartBwCount"></canvas></div></div>
+    <div class="chart-card"><h3>各功能间面宽对比 (min / avg / max)</h3><div class="chart-wrap"><canvas id="chartBwCompare"></canvas></div></div>
+    <div class="chart-card"><h3>客厅面宽分布直方图</h3><div class="chart-wrap"><canvas id="chartLivingHist"></canvas></div></div>
+    <div class="chart-card"><h3>主卧面宽分布直方图</h3><div class="chart-wrap"><canvas id="chartMasterHist"></canvas></div></div>
+  </div>
+  <div class="table-card">
+    <h3>明细数据 <span id="detailCount" style="font-weight:400;color:#888;font-size:12px">（172 条）</span></h3>
+    <div style="position:relative">
+    <table><thead><tr>
+      <th data-sort="idx" class="sortable" onclick="sortTable('idx')"># <span class="sort-arrow"></span></th>
+      <th data-sort="d" data-filter="d" class="sortable" onclick="sortTable('d')">行政区 <span class="sort-arrow"></span><span class="filter-icon" onclick="event.stopPropagation();toggleColFilter('d')">▾</span><div class="col-filter-dropdown" id="cf-d"></div></th>
+      <th data-sort="p" data-filter="p" class="sortable" onclick="sortTable('p')">项目案名 <span class="sort-arrow"></span><span class="filter-icon" onclick="event.stopPropagation();toggleColFilter('p')">▾</span><div class="col-filter-dropdown" id="cf-p"></div></th>
+      <th data-sort="o" data-filter="o" class="sortable" onclick="sortTable('o')">首开时间 <span class="sort-arrow"></span><span class="filter-icon" onclick="event.stopPropagation();toggleColFilter('o')">▾</span><div class="col-filter-dropdown" id="cf-o"></div></th>
+      <th data-sort="t" data-filter="t" class="sortable" onclick="sortTable('t')">业态 <span class="sort-arrow"></span><span class="filter-icon" onclick="event.stopPropagation();toggleColFilter('t')">▾</span><div class="col-filter-dropdown" id="cf-t"></div></th>
+      <th data-sort="a" data-filter="a" class="sortable" onclick="sortTable('a')">面积(㎡) <span class="sort-arrow"></span><span class="filter-icon" onclick="event.stopPropagation();toggleColFilter('a')">▾</span><div class="col-filter-dropdown" id="cf-a"></div></th>
+      <th data-sort="c" data-filter="c" class="sortable" onclick="sortTable('c')">面宽数 <span class="sort-arrow"></span><span class="filter-icon" onclick="event.stopPropagation();toggleColFilter('c')">▾</span><div class="col-filter-dropdown" id="cf-c"></div></th>
+      <th data-sort="l" data-filter="l" class="sortable" onclick="sortTable('l')">客厅面宽 <span class="sort-arrow"></span><span class="filter-icon" onclick="event.stopPropagation();toggleColFilter('l')">▾</span><div class="col-filter-dropdown" id="cf-l"></div></th>
+      <th data-sort="m" data-filter="m" class="sortable" onclick="sortTable('m')">主卧面宽 <span class="sort-arrow"></span><span class="filter-icon" onclick="event.stopPropagation();toggleColFilter('m')">▾</span><div class="col-filter-dropdown" id="cf-m"></div></th>
+      <th data-sort="b1" data-filter="b1" class="sortable" onclick="sortTable('b1')">次卧1面宽 <span class="sort-arrow"></span><span class="filter-icon" onclick="event.stopPropagation();toggleColFilter('b1')">▾</span><div class="col-filter-dropdown" id="cf-b1"></div></th>
+      <th data-sort="b2" data-filter="b2" class="sortable" onclick="sortTable('b2')">次卧2面宽 <span class="sort-arrow"></span><span class="filter-icon" onclick="event.stopPropagation();toggleColFilter('b2')">▾</span><div class="col-filter-dropdown" id="cf-b2"></div></th>
+      <th>户型图</th>
+    </tr></thead><tbody id="tableBody"></tbody></table>
+    </div>
+  </div>
+</div>
+
+<!-- Lightbox overlay -->
+<div class="lightbox" id="lightbox" onclick="closeLightbox(event)">
+  <span class="close" onclick="closeLightbox()">&times;</span>
+  <img id="lightboxImg" src="" alt="户型图放大">
+</div>
+
+<script>
+// ============ DATA (loaded dynamically from data.json) ============
+let RAW_DATA = [];
+
+// Fallback data embedded for local file:// access and offline use
+const RAW_DATA_FALLBACK = [{"d": "丰台区", "p": "北京建工·嘉棠雅序", "o": "预计2026年6月中旬", "t": "洋房", "a": "99", "ag": "95-99", "c": 3, "l": 3600, "m": 3300, "b1": 2900, "img": "row002_col13.jpeg"}, {"d": "丰台区", "p": "北京建工·嘉棠雅序", "o": "预计2026年6月中旬", "t": "洋房", "a": "109", "ag": "105-109", "c": 3, "l": 3400, "m": 3800, "b1": 3000, "img": "row003_col13.jpeg"}, {"d": "丰台区", "p": "北京建工·嘉棠雅序", "o": "预计2026年6月中旬", "t": "洋房", "a": "112", "ag": "110-114", "c": 3, "l": 3400, "m": 3800, "b1": 3000, "img": "row004_col13.jpeg"}, {"d": "丰台区", "p": "北京建工·嘉棠雅序", "o": "预计2026年6月中旬", "t": "洋房", "a": "123", "ag": "120-124", "c": 3, "l": 3600, "m": 4100, "b1": 3100, "img": "row005_col13.jpeg"}, {"d": "丰台区", "p": "北京建工·嘉棠雅序", "o": "预计2026年6月中旬", "t": "洋房", "a": "123", "ag": "120-124", "c": 3, "l": 3100, "m": 4500, "b1": 3700, "img": "row006_col13.jpeg"}, {"d": "丰台区", "p": "北京建工·嘉棠雅序", "o": "预计2026年6月中旬", "t": "洋房", "a": "139", "ag": "135-139", "c": 3, "l": 3800, "m": 5700, "b1": 3500, "img": "row007_col13.jpeg"}, {"d": "昌平区", "p": "龙樾海序", "o": "2026年5月16日", "t": "洋房", "a": "68", "ag": "65-69", "c": 2, "l": 3300, "m": 2800, "b1": null, "img": "row008_col13.jpeg"}, {"d": "昌平区", "p": "龙樾海序", "o": "2026年5月16日", "t": "洋房", "a": "76", "ag": "75-79", "c": 2, "l": 3800, "m": 3000, "b1": null, "img": "row009_col13.jpeg"}, {"d": "昌平区", "p": "龙樾海序", "o": "2026年5月16日", "t": "洋房", "a": "78", "ag": "75-79", "c": 2, "l": 4300, "m": 3000, "b1": null, "img": "row010_col13.jpeg"}, {"d": "昌平区", "p": "龙樾海序", "o": "2026年5月16日", "t": "洋房", "a": "82", "ag": "80-84", "c": 2, "l": 4300, "m": 3100, "b1": null, "img": "row011_col13.jpeg"}, {"d": "昌平区", "p": "龙樾海序", "o": "2026年5月16日", "t": "洋房", "a": "95", "ag": "95-99", "c": 3, "l": 3600, "m": 3200, "b1": 2700, "img": "row012_col13.jpeg"}, {"d": "昌平区", "p": "龙樾海序", "o": "2026年5月16日", "t": "洋房", "a": "95", "ag": "95-99", "c": 3, "l": 3700, "m": 3600, "b1": 2700, "img": "row013_col13.jpeg"}, {"d": "昌平区", "p": "龙樾海序", "o": "2026年5月16日", "t": "洋房", "a": "103", "ag": "100-104", "c": 3, "l": 3800, "m": 3700, "b1": 2800, "img": "row014_col13.jpeg"}, {"d": "昌平区", "p": "龙樾海序", "o": "2026年5月16日", "t": "洋房", "a": "108", "ag": "105-109", "c": 3, "l": 3800, "m": 3700, "b1": 2800, "img": "row015_col13.jpeg"}, {"d": "昌平区", "p": "龙樾海序", "o": "2026年5月16日", "t": "洋房", "a": "108", "ag": "105-109", "c": 3, "l": 3800, "m": 3200, "b1": 2600, "img": "row016_col13.jpeg"}, {"d": "昌平区", "p": "龙樾海序", "o": "2026年5月16日", "t": "洋房", "a": "122", "ag": "120-124", "c": 3, "l": 4200, "m": 3200, "b1": 2900, "img": "row017_col13.jpeg"}, {"d": "石景山区", "p": "首钢璟瑞长安", "o": "2026年4月24日", "t": "洋房", "a": "88", "ag": "85-89", "c": 4000, "l": 3200, "m": null, "b1": null, "img": "row018_col13.jpeg"}, {"d": "石景山区", "p": "首钢璟瑞长安", "o": "2026年4月24日", "t": "洋房", "a": "92", "ag": "90-94", "c": 3500, "l": 3200, "m": null, "b1": null, "img": "row019_col13.jpeg"}, {"d": "石景山区", "p": "首钢璟瑞长安", "o": "2026年4月24日", "t": "洋房", "a": "100", "ag": "100-104", "c": 4000, "l": 3200, "m": 2800, "b1": null, "img": "row020_col13.jpeg"}, {"d": "石景山区", "p": "首钢璟瑞长安", "o": "2026年4月24日", "t": "洋房", "a": "111", "ag": "110-114", "c": 4000, "l": 3100, "m": 2900, "b1": null, "img": "row021_col13.jpeg"}, {"d": "石景山区", "p": "首钢璟瑞长安", "o": "2026年4月24日", "t": "洋房", "a": "123", "ag": "120-124", "c": 4300, "l": 3700, "m": 3000, "b1": null, "img": "row022_col13.jpeg"}, {"d": "石景山区", "p": "首钢璟瑞长安", "o": "2026年4月24日", "t": "洋房", "a": "125", "ag": "125-129", "c": 4300, "l": 3700, "m": 3000, "b1": null, "img": "row023_col13.jpeg"}, {"d": "丰台区", "p": "中建方程国贤府", "o": "2026年4月11日", "t": "洋房", "a": "78", "ag": "75-79", "c": 2, "l": 3300, "m": 3200, "b1": null, "img": "row024_col13.jpeg"}, {"d": "丰台区", "p": "中建方程国贤府", "o": "2026年4月11日", "t": "洋房", "a": "92", "ag": "90-94", "c": 3, "l": 2700, "m": 3600, "b1": 3200, "img": "row025_col13.jpeg"}, {"d": "丰台区", "p": "中建方程国贤府", "o": "2026年4月11日", "t": "洋房", "a": "105", "ag": "105-109", "c": 3, "l": 3400, "m": 4000, "b1": 3000, "img": "row026_col13.jpeg"}, {"d": "丰台区", "p": "中建方程国贤府", "o": "2026年4月11日", "t": "洋房", "a": "117", "ag": "115-119", "c": 3, "l": 3600, "m": 4500, "b1": 3000, "img": "row027_col13.jpeg"}, {"d": "昌平区", "p": "未来城·星寰时代", "o": "2026年3月29日", "t": "洋房", "a": "78", "ag": "75-79", "c": 2, "l": 4000, "m": 3200, "b1": null, "img": "row028_col13.jpeg"}, {"d": "昌平区", "p": "未来城·星寰时代", "o": "2026年3月29日", "t": "洋房", "a": "92", "ag": "90-94", "c": 3, "l": 3700, "m": 3600, "b1": 2800, "img": "row029_col13.jpeg"}, {"d": "昌平区", "p": "未来城·星寰时代", "o": "2026年3月29日", "t": "小高", "a": "112", "ag": "110-114", "c": 3, "l": 4000, "m": 3800, "b1": 3000, "img": "row030_col13.jpeg"}, {"d": "昌平区", "p": "未来城·星寰时代", "o": "2026年3月29日", "t": "小高", "a": "118", "ag": "115-119", "c": 2, "l": 4300, "m": 6650, "b1": null, "img": "row031_col13.jpeg"}, {"d": "昌平区", "p": "未来城·星寰时代", "o": "2026年3月29日", "t": "洋房", "a": "128", "ag": "125-129", "c": 3, "l": 4200, "m": 4800, "b1": 3000, "img": "row032_col13.jpeg"}, {"d": "昌平区", "p": "国贤府PARK", "o": "2026年3月29日", "t": "洋房", "a": "77", "ag": "75-79", "c": 2, "l": 3300, "m": 3400, "b1": null, "img": "row033_col13.jpeg"}, {"d": "昌平区", "p": "国贤府PARK", "o": "2026年3月29日", "t": "洋房", "a": "99", "ag": "95-99", "c": 3, "l": 3200, "m": 3700, "b1": 3000, "img": "row034_col13.jpeg"}, {"d": "昌平区", "p": "国贤府PARK", "o": "2026年3月29日", "t": "洋房", "a": "99", "ag": "95-99", "c": 3, "l": 3200, "m": 3700, "b1": 3000, "img": "row035_col13.jpeg"}, {"d": "昌平区", "p": "国贤府PARK", "o": "2026年3月29日", "t": "洋房", "a": "110", "ag": "110-114", "c": 3, "l": 3000, "m": 4000, "b1": 3300, "img": "row036_col13.jpeg"}, {"d": "昌平区", "p": "国贤府PARK", "o": "2026年3月29日", "t": "洋房", "a": "110", "ag": "110-114", "c": 3, "l": 3000, "m": 4000, "b1": 3300, "img": "row037_col13.jpeg"}, {"d": "昌平区", "p": "国贤府PARK", "o": "2026年3月29日", "t": "洋房", "a": "119", "ag": "115-119", "c": 3, "l": 3000, "m": 4500, "b1": 3500, "img": "row038_col13.jpeg"}, {"d": "昌平区", "p": "国贤府PARK", "o": "2026年3月29日", "t": "洋房", "a": "122", "ag": "120-124", "c": 3, "l": 3600, "m": 4500, "b1": 3000, "img": "row039_col13.jpeg"}, {"d": "昌平区", "p": "国贤府PARK", "o": "2026年3月29日", "t": "洋房", "a": "144", "ag": "140-144", "c": 4, "l": 3000, "m": 4700, "b1": 3000, "img": "row040_col13.jpeg"}, {"d": "通州区", "p": "中海玖树满和", "o": "2026年3月25日", "t": "洋房", "a": "75", "ag": "75-79", "c": 2, "l": 3900, "m": 3100, "b1": null, "img": "row041_col13.jpeg"}, {"d": "通州区", "p": "中海玖树满和", "o": "2026年3月25日", "t": "洋房", "a": "89", "ag": "85-89", "c": 2, "l": 4000, "m": 3400, "b1": null, "img": "row042_col13.jpeg"}, {"d": "通州区", "p": "中海玖树满和", "o": "2026年3月25日", "t": "洋房", "a": "102", "ag": "100-104", "c": 3, "l": 3500, "m": 3200, "b1": 2900, "img": "row043_col13.jpeg"}, {"d": "通州区", "p": "中海玖树满和", "o": "2026年3月25日", "t": "洋房", "a": "121", "ag": "120-124", "c": 3, "l": 4400, "m": 3500, "b1": 3200, "img": "row044_col13.jpeg"}, {"d": "丰台区", "p": "嘉棠璟樾", "o": "2026年3月22日", "t": "洋房", "a": "99", "ag": "95-99", "c": 2, "l": 4000, "m": 3300, "b1": null, "img": "row045_col13.jpeg"}, {"d": "丰台区", "p": "嘉棠璟樾", "o": "2026年3月22日", "t": "洋房", "a": "123", "ag": "120-124", "c": 3, "l": 3900, "m": 3300, "b1": 3100, "img": "row046_col13.jpeg"}, {"d": "丰台区", "p": "嘉棠璟樾", "o": "2026年3月22日", "t": "洋房", "a": "138", "ag": "135-139", "c": 3, "l": 4400, "m": 3700, "b1": 3100, "img": "row047_col13.jpeg"}, {"d": "丰台区", "p": "嘉棠璟樾", "o": "2026年3月22日", "t": "洋房", "a": "155", "ag": "155-159", "c": 3, "l": 5300, "m": 3900, "b1": 3100, "img": "row048_col13.jpeg"}, {"d": "丰台区", "p": "嘉棠璟樾", "o": "2026年3月22日", "t": "洋房", "a": "176", "ag": "175-179", "c": 3, "l": 6000, "m": 4000, "b1": 3500, "img": "row049_col13.jpeg"}, {"d": "朝阳区", "p": "御林湾", "o": "2026年3月6日", "t": "大高", "a": "90", "ag": "90-94", "c": 2, "l": 3500, "m": 3300, "b1": null, "img": "row050_col13.jpeg"}, {"d": "朝阳区", "p": "御林湾", "o": "2026年3月6日", "t": "大高", "a": "119", "ag": "115-119", "c": 3, "l": 3600, "m": 3300, "b1": 2900, "img": "row051_col13.jpeg"}, {"d": "朝阳区", "p": "御林湾", "o": "2026年3月6日", "t": "大高", "a": "123", "ag": "120-124", "c": 2, "l": 4000, "m": 3400, "b1": null, "img": "row052_col13.jpeg"}, {"d": "朝阳区", "p": "御林湾", "o": "2026年3月6日", "t": "大高", "a": "124", "ag": "120-124", "c": 3, "l": 4800, "m": 4000, "b1": 3400, "img": "row053_col13.jpeg"}, {"d": "朝阳区", "p": "御林湾", "o": "2026年3月6日", "t": "大高", "a": "125", "ag": "125-129", "c": 2, "l": 4000, "m": 3400, "b1": null, "img": "row054_col13.jpeg"}, {"d": "朝阳区", "p": "御林湾", "o": "2026年3月6日", "t": "大高", "a": "125", "ag": "125-129", "c": 2, "l": 4000, "m": 3400, "b1": null, "img": "row055_col13.jpeg"}, {"d": "朝阳区", "p": "御林湾", "o": "2026年3月6日", "t": "大高", "a": "140", "ag": "140-144", "c": 3, "l": 4200, "m": 3600, "b1": 3200, "img": "row056_col13.jpeg"}, {"d": "朝阳区", "p": "御林湾", "o": "2026年3月6日", "t": "大高", "a": "145", "ag": "145-149", "c": 3, "l": 4200, "m": 3500, "b1": 3200, "img": "row057_col13.jpeg"}, {"d": "朝阳区", "p": "御林湾", "o": "2026年3月6日", "t": "大高", "a": "155", "ag": "155-159", "c": 3, "l": 4200, "m": 3600, "b1": 3200, "img": "row058_col13.jpeg"}, {"d": "朝阳区", "p": "御林湾", "o": "2026年3月6日", "t": "洋房", "a": "213", "ag": "210-214", "c": 3, "l": 6400, "m": 4800, "b1": 3600, "img": "row059_col13.jpeg"}, {"d": "朝阳区", "p": "御林湾", "o": "2026年3月6日", "t": "洋房", "a": "220", "ag": "220-224", "c": 3, "l": 6500, "m": 4800, "b1": 3600, "img": "row060_col13.jpeg"}, {"d": "海淀区", "p": "中海·安澜北京", "o": "2026年1月31日", "t": "别墅", "a": "210", "ag": "210-214", "c": 3, "l": 6000, "m": 3500, "b1": 4000, "img": "row061_col13.jpeg"}, {"d": "海淀区", "p": "中海·安澜北京", "o": "2026年1月31日", "t": "别墅", "a": "275", "ag": "275-279", "c": 4, "l": 6800, "m": 3800, "b1": 4500, "img": "row062_col13.jpeg"}, {"d": "海淀区", "p": "中海·安澜北京", "o": "2026年1月31日", "t": "别墅", "a": "310", "ag": "310-314", "c": 4, "l": 6500, "m": 3800, "b1": 4800, "img": "row063_col13.jpeg"}, {"d": "大兴区", "p": "兴创万象茗筑", "o": "暂无", "t": "小高", "a": "91", "ag": "90-94", "c": 2, "l": 3500, "m": 3500, "b1": null, "img": "row064_col13.jpeg"}, {"d": "大兴区", "p": "兴创万象茗筑", "o": "暂无", "t": "小高", "a": "95", "ag": "95-99", "c": 2, "l": 4300, "m": 3500, "b1": null, "img": "row065_col13.jpeg"}, {"d": "大兴区", "p": "兴创万象茗筑", "o": "暂无", "t": "小高", "a": "97", "ag": "95-99", "c": 2, "l": 4000, "m": 3500, "b1": null, "img": "row066_col13.jpeg"}, {"d": "大兴区", "p": "兴创万象茗筑", "o": "暂无", "t": "洋房", "a": "103", "ag": "100-104", "c": 2, "l": 5000, "m": 3450, "b1": null, "img": "row067_col13.jpeg"}, {"d": "大兴区", "p": "兴创万象茗筑", "o": "暂无", "t": "洋房", "a": "130", "ag": "130-134", "c": 3, "l": 4100, "m": 3400, "b1": 3150, "img": "row068_col13.jpeg"}, {"d": "门头沟区", "p": "长安华曦府·金安", "o": "2025年12月21日", "t": "洋房", "a": "78", "ag": "75-79", "c": 2, "l": 3700, "m": 3100, "b1": null, "img": "row069_col13.jpeg"}, {"d": "门头沟区", "p": "长安华曦府·金安", "o": "2025年12月21日", "t": "洋房", "a": "96", "ag": "95-99", "c": 3, "l": 4000, "m": 3400, "b1": 2900, "img": "row070_col13.jpeg"}, {"d": "门头沟区", "p": "长安华曦府·金安", "o": "2025年12月21日", "t": "洋房", "a": "118", "ag": "115-119", "c": 3, "l": 4200, "m": 3400, "b1": 3000, "img": "row071_col13.jpeg"}, {"d": "海淀区", "p": "中建壹品·海宸元境", "o": "2025年11月28日", "t": "洋房", "a": "99", "ag": "95-99", "c": 2, "l": 3500, "m": 3400, "b1": null, "img": "row072_col13.jpeg"}, {"d": "海淀区", "p": "中建壹品·海宸元境", "o": "2025年11月28日", "t": "洋房", "a": "107", "ag": "105-109", "c": 2, "l": 5300, "m": 3550, "b1": null, "img": "row073_col13.jpeg"}, {"d": "海淀区", "p": "中建壹品·海宸元境", "o": "2025年11月28日", "t": "洋房", "a": "123", "ag": "120-124", "c": 3, "l": 2650, "m": 3300, "b1": 3000, "img": "row074_col13.jpeg"}, {"d": "海淀区", "p": "中建壹品·海宸元境", "o": "2025年11月28日", "t": "洋房", "a": "139", "ag": "135-139", "c": 3, "l": 5000, "m": 3000, "b1": 3100, "img": "row075_col13.jpeg"}, {"d": "海淀区", "p": "中建壹品·海宸元境", "o": "2025年11月28日", "t": "洋房", "a": "181", "ag": "180-184", "c": 4, "l": 5000, "m": 3800, "b1": 3400, "img": "row076_col13.jpeg"}, {"d": "海淀区", "p": "北京隅·海岄", "o": "2025年11月28日", "t": "洋房", "a": "108", "ag": "105-109", "c": 3, "l": 3600, "m": 3200, "b1": 2800, "img": "row077_col13.jpeg"}, {"d": "海淀区", "p": "北京隅·海岄", "o": "2025年11月28日", "t": "洋房", "a": "129", "ag": "125-129", "c": 3, "l": 4000, "m": 3500, "b1": 2900, "img": "row078_col13.jpeg"}, {"d": "海淀区", "p": "北京隅·海岄", "o": "2025年11月28日", "t": "洋房", "a": "145", "ag": "145-149", "c": 3, "l": 5000, "m": 3700, "b1": 3100, "img": "row079_col13.jpeg"}, {"d": "朝阳区", "p": "璞樾", "o": "2025年10月17日", "t": "大高", "a": "152", "ag": "150-154", "c": 3, "l": 5050, "m": 3720, "b1": 3100, "img": "row080_col13.jpeg"}, {"d": "朝阳区", "p": "璞樾", "o": "2025年10月17日", "t": "大高", "a": "152", "ag": "150-154", "c": 4, "l": 4100, "m": 3200, "b1": 3200, "img": "row081_col13.jpeg"}, {"d": "朝阳区", "p": "璞樾", "o": "2025年10月17日", "t": "大高", "a": "188", "ag": "185-189", "c": 3, "l": 6800, "m": 4000, "b1": 3600, "img": "row082_col13.jpeg"}, {"d": "朝阳区", "p": "璞樾", "o": "2025年10月17日", "t": "大高", "a": "195", "ag": "195-199", "c": 3, "l": 6800, "m": 3700, "b1": 4000, "img": "row083_col13.jpeg"}, {"d": "朝阳区", "p": "璞樾", "o": "2025年10月17日", "t": "大高", "a": "230", "ag": "230-234", "c": 4, "l": 6050, "m": 4000, "b1": 3900, "img": "row084_col13.jpeg"}, {"d": "朝阳区", "p": "璞樾", "o": "2025年10月17日", "t": "大高", "a": "258", "ag": "255-259", "c": 4, "l": 6250, "m": 4000, "b1": 3500, "img": "row085_col13.jpeg"}, {"d": "朝阳区", "p": "中建紫京宸园", "o": "2025年10月12日", "t": "大高", "a": "148", "ag": "145-149", "c": 3, "l": 4700, "m": 3100, "b1": 3600, "img": "row086_col13.jpeg"}, {"d": "朝阳区", "p": "中建紫京宸园", "o": "2025年10月12日", "t": "大高", "a": "172", "ag": "170-174", "c": 3, "l": 5800, "m": 3600, "b1": 3800, "img": "row087_col13.jpeg"}, {"d": "朝阳区", "p": "中建紫京宸园", "o": "2025年10月12日", "t": "大高", "a": "232", "ag": "230-234", "c": 4, "l": 6300, "m": 4000, "b1": 3500, "img": "row088_col13.jpeg"}, {"d": "朝阳区", "p": "中建紫京宸园", "o": "2025年10月12日", "t": "大高", "a": "278", "ag": "275-279", "c": 4, "l": 6400, "m": 4800, "b1": 3600, "img": "row089_col13.jpeg"}, {"d": "昌平区", "p": "国誉星城", "o": "2025年9月29日", "t": "小高", "a": "81", "ag": "80-84", "c": 2, "l": 3300, "m": 3400, "b1": null, "img": "row090_col13.jpeg"}, {"d": "昌平区", "p": "国誉星城", "o": "2025年9月29日", "t": "小高", "a": "97", "ag": "95-99", "c": 3, "l": 3400, "m": 2800, "b1": 3200, "img": "row091_col13.jpeg"}, {"d": "昌平区", "p": "国誉星城", "o": "2025年9月29日", "t": "小高", "a": "112", "ag": "110-114", "c": 3, "l": 3700, "m": 3300, "b1": 2800, "img": "row092_col13.jpeg"}, {"d": "昌平区", "p": "国誉星城", "o": "2025年9月29日", "t": "小高", "a": "126", "ag": "125-129", "c": 3, "l": 4000, "m": 3300, "b1": 3000, "img": "row093_col13.jpeg"}, {"d": "石景山区", "p": "中海瑞文里", "o": "2025年9月27日", "t": "洋房", "a": "90", "ag": "90-94", "c": 2, "l": 3900, "m": 3300, "b1": null, "img": "row094_col13.jpeg"}, {"d": "石景山区", "p": "中海瑞文里", "o": "2025年9月27日", "t": "洋房", "a": "110", "ag": "110-114", "c": 3, "l": 3800, "m": 2900, "b1": 3300, "img": "row095_col13.jpeg"}, {"d": "石景山区", "p": "中海瑞文里", "o": "2025年9月27日", "t": "洋房", "a": "131", "ag": "130-134", "c": 3, "l": 4700, "m": 3000, "b1": 3900, "img": "row096_col13.jpeg"}, {"d": "顺义区", "p": "龙湖·宸翰", "o": "2025年9月24日", "t": "洋房", "a": "97", "ag": "95-99", "c": 3, "l": 3600, "m": 5000, "b1": 3100, "img": "row097_col13.jpeg"}, {"d": "顺义区", "p": "龙湖·宸翰", "o": "2025年9月24日", "t": "洋房", "a": "118", "ag": "115-119", "c": 3, "l": 4500, "m": 3700, "b1": 3600, "img": "row098_col13.jpeg"}, {"d": "顺义区", "p": "龙湖·宸翰", "o": "2025年9月24日", "t": "洋房", "a": "138", "ag": "135-139", "c": 3, "l": 5600, "m": 3950, "b1": 3150, "img": "row099_col13.jpeg"}, {"d": "顺义区", "p": "龙湖·宸翰", "o": "2025年9月24日", "t": "洋房", "a": "165", "ag": "165-169", "c": 4, "l": 6100, "m": 5100, "b1": 4200, "img": "row100_col13.jpeg"}, {"d": "通州区", "p": "中建运河玖院", "o": "2025年9月20日", "t": "大高", "a": "150", "ag": "150-154", "c": 3, "l": 5700, "m": 3300, "b1": 3900, "img": "row101_col13.jpeg"}, {"d": "通州区", "p": "中建运河玖院", "o": "2025年9月20日", "t": "大高", "a": "155", "ag": "155-159", "c": 3, "l": 5700, "m": 4400, "b1": 3300, "img": "row102_col13.jpeg"}, {"d": "通州区", "p": "中建运河玖院", "o": "2025年9月20日", "t": "大高", "a": "157", "ag": "155-159", "c": 3, "l": 5700, "m": 4400, "b1": 3300, "img": "row103_col13.jpeg"}, {"d": "通州区", "p": "中建运河玖院", "o": "2025年9月20日", "t": "大高", "a": "175", "ag": "175-179", "c": 4, "l": 5900, "m": 4400, "b1": 3300, "img": "row104_col13.jpeg"}, {"d": "通州区", "p": "中建运河玖院", "o": "2025年9月20日", "t": "大高", "a": "182", "ag": "180-184", "c": 4, "l": 5700, "m": 3700, "b1": 3500, "img": "row105_col13.jpeg"}, {"d": "通州区", "p": "中建运河玖院", "o": "2025年9月20日", "t": "大高", "a": "205", "ag": "205-209", "c": 4, "l": 6100, "m": 4300, "b1": 3500, "img": "row106_col13.jpeg"}, {"d": "通州区", "p": "中建运河玖院", "o": "2025年9月20日", "t": "大高", "a": "207", "ag": "205-209", "c": 4, "l": 6100, "m": 4300, "b1": 3500, "img": "row107_col13.jpeg"}, {"d": "通州区", "p": "中建运河玖院", "o": "2025年9月20日", "t": "大高", "a": "215", "ag": "215-219", "c": 4, "l": 4200, "m": 3200, "b1": 3500, "img": "row108_col13.jpeg"}, {"d": "通州区", "p": "中建运河玖院", "o": "2025年9月20日", "t": "大高", "a": "218", "ag": "215-219", "c": 4, "l": 4300, "m": 3300, "b1": 3500, "img": "row109_col13.jpeg"}, {"d": "通州区", "p": "中建运河玖院", "o": "2025年9月20日", "t": "大高", "a": "252", "ag": "250-254", "c": 4, "l": 4800, "m": 3500, "b1": 3600, "img": "row110_col13.jpeg"}, {"d": "通州区", "p": "中建运河玖院", "o": "2025年9月20日", "t": "大高", "a": "260", "ag": "260-264", "c": 4, "l": 5500, "m": 3800, "b1": 4200, "img": "row111_col13.jpeg"}, {"d": "朝阳区", "p": "金茂满曜", "o": "2025年6月16日", "t": "小高", "a": "115", "ag": "115-119", "c": 3, "l": 3900, "m": 3400, "b1": 3100, "img": "row112_col13.jpeg"}, {"d": "朝阳区", "p": "金茂满曜", "o": "2025年6月16日", "t": "小高", "a": "116", "ag": "115-119", "c": 3, "l": 3900, "m": 3400, "b1": 3100, "img": "row113_col13.jpeg"}, {"d": "朝阳区", "p": "金茂满曜", "o": "2025年6月16日", "t": "小高", "a": "129", "ag": "125-129", "c": 3, "l": 4500, "m": 3400, "b1": 3100, "img": "row114_col13.jpeg"}, {"d": "朝阳区", "p": "金茂满曜", "o": "2025年6月16日", "t": "洋房", "a": "133", "ag": "130-134", "c": 3, "l": 5000, "m": 3500, "b1": 3100, "img": "row115_col13.jpeg"}, {"d": "朝阳区", "p": "金茂满曜", "o": "2025年6月16日", "t": "大高", "a": "148", "ag": "145-149", "c": 4, "l": 4400, "m": 3400, "b1": 3100, "img": "row116_col13.jpeg"}, {"d": "朝阳区", "p": "金茂满曜", "o": "2025年6月16日", "t": "大高", "a": "159", "ag": "155-159", "c": 3, "l": 6300, "m": 3800, "b1": 3200, "img": "row117_col13.jpeg"}, {"d": "海淀区", "p": "华润臻澐", "o": "2025年6月16日", "t": "小高", "a": "134", "ag": "130-134", "c": 3, "l": 5700, "m": 3200, "b1": 2900, "img": "row118_col13.jpeg"}, {"d": "海淀区", "p": "华润臻澐", "o": "2025年6月16日", "t": "小高", "a": "139", "ag": "135-139", "c": 3, "l": 5700, "m": 3200, "b1": 2900, "img": "row119_col13.jpeg"}, {"d": "海淀区", "p": "华润臻澐", "o": "2025年6月16日", "t": "小高", "a": "139", "ag": "135-139", "c": 3, "l": 5700, "m": 3200, "b1": 2900, "img": "row120_col13.jpeg"}, {"d": "海淀区", "p": "华润臻澐", "o": "2025年6月16日", "t": "小高", "a": "187", "ag": "185-189", "c": 3, "l": 5800, "m": 3700, "b1": 3100, "img": "row121_col13.jpeg"}, {"d": "海淀区", "p": "华润臻澐", "o": "2025年6月16日", "t": "小高", "a": "187", "ag": "185-189", "c": 3, "l": 5800, "m": 3700, "b1": 3100, "img": "row122_col13.jpeg"}, {"d": "海淀区", "p": "华润臻澐", "o": "2025年6月16日", "t": "小高", "a": "209", "ag": "205-209", "c": 3, "l": 6450, "m": 4150, "b1": 3300, "img": "row123_col13.jpeg"}, {"d": "海淀区", "p": "华润臻澐", "o": "2025年6月16日", "t": "小高", "a": "229", "ag": "225-229", "c": 4, "l": 6100, "m": 3300, "b1": 3900, "img": "row124_col13.jpeg"}, {"d": "海淀区", "p": "建发海晏", "o": "2025年6月12日", "t": "洋房", "a": "183", "ag": "180-184", "c": 3, "l": 5700, "m": 3800, "b1": 3300, "img": "row125_col13.jpeg"}, {"d": "海淀区", "p": "建发海晏", "o": "2025年6月12日", "t": "洋房", "a": "218", "ag": "215-219", "c": 4, "l": 6000, "m": 3800, "b1": 3300, "img": "row126_col13.jpeg"}, {"d": "海淀区", "p": "建发海晏", "o": "2025年6月12日", "t": "洋房", "a": "265", "ag": "265-269", "c": 4, "l": 6400, "m": 4000, "b1": 4200, "img": "row127_col13.jpeg"}, {"d": "朝阳区", "p": "保利朝观天珺", "o": "2025年6月10日", "t": "大高", "a": "91", "ag": "90-94", "c": 2, "l": 4600, "m": 3400, "b1": null, "img": "row128_col13.jpeg"}, {"d": "朝阳区", "p": "保利朝观天珺", "o": "2025年6月10日", "t": "大高", "a": "122", "ag": "120-124", "c": 3, "l": 4800, "m": 3700, "b1": 3300, "img": "row129_col13.jpeg"}, {"d": "朝阳区", "p": "保利朝观天珺", "o": "2025年6月10日", "t": "大高", "a": "139", "ag": "135-139", "c": 3, "l": 5500, "m": 3600, "b1": 3300, "img": "row130_col13.jpeg"}, {"d": "朝阳区", "p": "保利朝观天珺", "o": "2025年6月10日", "t": "大高", "a": "157", "ag": "155-159", "c": 4, "l": 5000, "m": 3900, "b1": 3800, "img": "row131_col13.jpeg"}, {"d": "丰台区", "p": "丽泽叁号院", "o": "2025年6月8日", "t": "大高", "a": "99", "ag": "95-99", "c": 2, "l": 4100, "m": 3300, "b1": null, "img": "row132_col13.jpeg"}, {"d": "丰台区", "p": "丽泽叁号院", "o": "2025年6月8日", "t": "大高", "a": "104", "ag": "100-104", "c": 2, "l": 4100, "m": 3300, "b1": null, "img": "row133_col13.jpeg"}, {"d": "丰台区", "p": "丽泽叁号院", "o": "2025年6月8日", "t": "大高", "a": "107", "ag": "105-109", "c": 3, "l": 3600, "m": 3200, "b1": 3000, "img": "row134_col13.jpeg"}, {"d": "丰台区", "p": "丽泽叁号院", "o": "2025年6月8日", "t": "大高", "a": "110", "ag": "110-114", "c": 3, "l": 3600, "m": 3200, "b1": 3000, "img": "row135_col13.jpeg"}, {"d": "丰台区", "p": "丽泽叁号院", "o": "2025年6月8日", "t": "大高", "a": "114", "ag": "110-114", "c": 3, "l": 3600, "m": 3200, "b1": 3000, "img": "row136_col13.jpeg"}, {"d": "丰台区", "p": "丽泽叁号院", "o": "2025年6月8日", "t": "大高", "a": "139", "ag": "135-139", "c": 3, "l": 4300, "m": 3700, "b1": 3000, "img": "row137_col13.jpeg"}, {"d": "丰台区", "p": "丽泽叁号院", "o": "2025年6月8日", "t": "大高", "a": "139", "ag": "135-139", "c": 3, "l": 4300, "m": 3700, "b1": 3000, "img": "row138_col13.jpeg"}, {"d": "丰台区", "p": "丽泽叁号院", "o": "2025年6月8日", "t": "大高", "a": "151", "ag": "150-154", "c": 3, "l": 5400, "m": 3700, "b1": 3100, "img": "row139_col13.jpeg"}, {"d": "丰台区", "p": "丽泽叁号院", "o": "2025年6月8日", "t": "大高", "a": "158", "ag": "155-159", "c": 3, "l": 5400, "m": 3700, "b1": 3100, "img": "row140_col13.jpeg"}, {"d": "大兴区", "p": "招商序", "o": "2025年5月25日", "t": "洋房", "a": "108", "ag": "105-109", "c": 3, "l": 3000, "m": 4200, "b1": 3700, "img": "row141_col13.jpeg"}, {"d": "大兴区", "p": "招商序", "o": "2025年5月25日", "t": "小高", "a": "127", "ag": "125-129", "c": 4, "l": 3100, "m": 5100, "b1": 3600, "img": "row142_col13.jpeg"}, {"d": "大兴区", "p": "招商序", "o": "2025年5月25日", "t": "洋房", "a": "165", "ag": "165-169", "c": 4, "l": 2000, "m": 5000, "b1": 3000, "img": "row143_col13.jpeg"}, {"d": "通州区", "p": "金隅花溪云锦", "o": "2025年5月23日", "t": "洋房", "a": "108", "ag": "105-109", "c": 2, "l": 7000, "m": 3500, "b1": null, "img": "row144_col13.jpeg"}, {"d": "通州区", "p": "金隅花溪云锦", "o": "2025年5月23日", "t": "洋房", "a": "108", "ag": "105-109", "c": 2, "l": 2700, "m": 2700, "b1": null, "img": "row145_col13.jpeg"}, {"d": "通州区", "p": "金隅花溪云锦", "o": "2025年5月23日", "t": "洋房", "a": "125", "ag": "125-129", "c": 3, "l": 2000, "m": 4000, "b1": 10000, "img": "row146_col13.jpeg"}, {"d": "通州区", "p": "金隅花溪云锦", "o": "2025年5月23日", "t": "洋房", "a": "125", "ag": "125-129", "c": 3, "l": 3000, "m": 4000, "b1": 1500, "img": "row147_col13.jpeg"}, {"d": "通州区", "p": "金隅花溪云锦", "o": "2025年5月23日", "t": "洋房", "a": "138", "ag": "135-139", "c": 3, "l": 3000, "m": 2700, "b1": 1500, "img": "row148_col13.jpeg"}, {"d": "通州区", "p": "金隅花溪云锦", "o": "2025年5月23日", "t": "洋房", "a": "153", "ag": "150-154", "c": 3, "l": 3800, "m": 5600, "b1": 4000, "img": "row149_col13.jpeg"}, {"d": "通州区", "p": "金隅花溪云锦", "o": "2025年5月23日", "t": "洋房", "a": "153", "ag": "150-154", "c": 3, "l": 3800, "m": 5600, "b1": 4000, "img": "row150_col13.jpeg"}, {"d": "朝阳区", "p": "中海萬吉玖序", "o": "2025年5月18日", "t": "大高", "a": "165", "ag": "165-169", "c": 3, "l": 3700, "m": 5600, "b1": 3900, "img": "row151_col13.jpeg"}, {"d": "朝阳区", "p": "中海萬吉玖序", "o": "2025年5月18日", "t": "大高", "a": "168", "ag": "165-169", "c": 3, "l": 4000, "m": 5600, "b1": 3800, "img": "row152_col13.jpeg"}, {"d": "朝阳区", "p": "中海萬吉玖序", "o": "2025年5月18日", "t": "大高", "a": "171", "ag": "170-174", "c": 3, "l": 4000, "m": 5600, "b1": 3800, "img": "row153_col13.jpeg"}, {"d": "朝阳区", "p": "中海萬吉玖序", "o": "2025年5月18日", "t": "大高", "a": "172", "ag": "170-174", "c": 3, "l": 3900, "m": 5600, "b1": 3700, "img": "row154_col13.jpeg"}, {"d": "朝阳区", "p": "中海萬吉玖序", "o": "2025年5月18日", "t": "大高", "a": "176", "ag": "175-179", "c": 3, "l": 4000, "m": 5300, "b1": 3200, "img": "row155_col13.jpeg"}, {"d": "朝阳区", "p": "中海萬吉玖序", "o": "2025年5月18日", "t": "大高", "a": "198", "ag": "195-199", "c": 3, "l": 3800, "m": 7000, "b1": 4900, "img": "row156_col13.jpeg"}, {"d": "朝阳区", "p": "中海萬吉玖序", "o": "2025年5月18日", "t": "大高", "a": "215", "ag": "215-219", "c": 3, "l": 3800, "m": 7000, "b1": 4900, "img": "row157_col13.jpeg"}, {"d": "朝阳区", "p": "中海萬吉玖序", "o": "2025年5月18日", "t": "大高", "a": "221", "ag": "220-224", "c": 4, "l": 4900, "m": 6900, "b1": 3100, "img": "row158_col13.jpeg"}, {"d": "朝阳区", "p": "中海萬吉玖序", "o": "2025年5月18日", "t": "大高", "a": "249", "ag": "245-249", "c": 4, "l": 2700, "m": 6100, "b1": 4100, "img": "row159_col13.jpeg"}, {"d": "朝阳区", "p": "中海萬吉玖序", "o": "2025年5月18日", "t": "大高", "a": "253", "ag": "250-254", "c": 4, "l": 2800, "m": 7800, "b1": 4400, "img": "row160_col13.jpeg"}, {"d": "朝阳区", "p": "中海萬吉玖序", "o": "2025年5月18日", "t": "大高", "a": "302", "ag": "300-304", "c": 4, "l": 4500, "m": 9000, "b1": 6800, "img": "row161_col13.jpeg"}, {"d": "朝阳区", "p": "中海萬吉玖序", "o": "2025年5月18日", "t": "大高", "a": "291", "ag": "290-294", "c": 4, "l": 4450, "m": 6800, "b1": 4150, "img": "row162_col13.jpeg"}, {"d": "朝阳区", "p": "中海萬吉玖序", "o": "2025年5月18日", "t": "大高", "a": "372", "ag": "370-374", "c": 2, "l": 3000, "m": 4200, "b1": null, "img": "row163_col13.jpeg"}, {"d": "丰台区", "p": "中海丽金府", "o": "2025年6月", "t": "大高", "a": "130", "ag": "130-134", "c": 3, "l": 4200, "m": 3700, "b1": 3000, "img": "row164_col13.jpeg"}, {"d": "丰台区", "p": "中海丽金府", "o": "2025年6月", "t": "大高", "a": "136", "ag": "135-139", "c": 3, "l": 4200, "m": 3700, "b1": 3000, "img": "row165_col13.jpeg"}, {"d": "丰台区", "p": "中海丽金府", "o": "2025年6月", "t": "大高", "a": "160", "ag": "160-164", "c": 3, "l": 5700, "m": 3800, "b1": 3200, "img": "row166_col13.jpeg"}, {"d": "丰台区", "p": "中海丽金府", "o": "2025年6月", "t": "大高", "a": "181", "ag": "180-184", "c": 3, "l": 6100, "m": 3800, "b1": 3200, "img": "row167_col13.jpeg"}, {"d": "丰台区", "p": "中海丽金府", "o": "2025年6月", "t": "大高", "a": "203", "ag": "200-204", "c": 3, "l": 6600, "m": 4200, "b1": 3400, "img": "row168_col13.jpeg"}, {"d": "丰台区", "p": "中海丽金府", "o": "2025年6月", "t": "大高", "a": "231", "ag": "230-234", "c": 4, "l": 6800, "m": 3400, "b1": 3550, "img": "row169_col13.jpeg"}, {"d": "丰台区", "p": "隅西颂", "o": "2025年4月28日", "t": "小高", "a": "112", "ag": "110-114", "c": 3, "l": 4000, "m": 2900, "b1": 2350, "img": "row170_col13.jpeg"}, {"d": "丰台区", "p": "隅西颂", "o": "2025年4月28日", "t": "小高", "a": "118", "ag": "115-119", "c": 3, "l": 4000, "m": 3550, "b1": 2900, "img": "row171_col13.jpeg"}, {"d": "丰台区", "p": "隅西颂", "o": "2025年4月28日", "t": "小高", "a": "122", "ag": "120-124", "c": 3, "l": 4000, "m": 3400, "b1": 3000, "img": "row172_col13.jpeg"}, {"d": "丰台区", "p": "隅西颂", "o": "2025年4月28日", "t": "小高", "a": "154", "ag": "150-154", "c": 3, "l": 5500, "m": 3600, "b1": 3100, "img": null}];
+
+const DISTRICTS = ["丰台区", "大兴区", "昌平区", "朝阳区", "海淀区", "石景山区", "通州区", "门头沟区", "顺义区"];
+const PROJECTS = ["中建壹品·海宸元境", "中建方程国贤府", "中建紫京宸园", "中建运河玖院", "中海·安澜北京", "中海丽金府", "中海玖树满和", "中海瑞文里", "中海萬吉玖序", "丽泽叁号院", "保利朝观天珺", "兴创万象茗筑", "北京建工·嘉棠雅序", "北京隅·海岄", "华润臻澐", "嘉棠璟樾", "国誉星城", "国贤府PARK", "建发海晏", "御林湾", "招商序", "未来城·星寰时代", "璞樾", "金茂满曜", "金隅花溪云锦", "长安华曦府·金安", "隅西颂", "首钢璟瑞长安", "龙樾海序", "龙湖·宸翰"];
+const TYPES = ["别墅", "大高", "小高", "洋房"];
+const AREAS = [68, 75, 76, 77, 78, 81, 82, 88, 89, 90, 91, 92, 95, 96, 97, 99, 100, 102, 103, 104, 105, 107, 108, 109, 110, 111, 112, 114, 115, 116, 117, 118, 119, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 133, 134, 136, 138, 139, 140, 144, 145, 148, 150, 151, 152, 153, 154, 155, 157, 158, 159, 160, 165, 168, 171, 172, 175, 176, 181, 182, 183, 187, 188, 195, 198, 203, 205, 207, 209, 210, 213, 215, 218, 220, 221, 229, 230, 231, 232, 249, 252, 253, 258, 260, 265, 275, 278, 291, 302, 310, 372];
+const AREA_BUCKETS = ["65-69", "75-79", "80-84", "85-89", "90-94", "95-99", "100-104", "105-109", "110-114", "115-119", "120-124", "125-129", "130-134", "135-139", "140-144", "145-149", "150-154", "155-159", "160-164", "165-169", "170-174", "175-179", "180-184", "185-189", "195-199", "200-204", "205-209", "210-214", "215-219", "220-224", "225-229", "230-234", "245-249", "250-254", "255-259", "260-264", "265-269", "275-279", "290-294", "300-304", "310-314", "370-374"];
+
+// ============ STATE ============
+const state = {
+  district: new Set(),
+  project: new Set(),
+  type: new Set(),
+  area: new Set(),
+  bwCount: new Set()
+};
+
+let filteredData = [...RAW_DATA];
+const charts = {};
+let sortState = { key:'idx', dir:'asc' };
+const colFilters = {};
+const COL_FILTER_KEYS = ['d','p','o','t','a','c','l','m','b1','b2'];
+COL_FILTER_KEYS.forEach(k => colFilters[k] = new Set());
+Chart.register(ChartDataLabels);
+
+// ============ INIT ============
+function init() {
+  renderFilterBar();
+}
+
+// Load data dynamically, fall back to embedded data
+fetch('./data.json')
+  .then(r => r.json())
+  .then(data => {
+    RAW_DATA = data;
+    document.getElementById('totalCount').textContent = data.length;
+    applyFilters();
+  })
+  .catch(() => {
+    if (typeof RAW_DATA_FALLBACK !== 'undefined') {
+      RAW_DATA = RAW_DATA_FALLBACK;
+      document.getElementById('totalCount').textContent = RAW_DATA.length;
+      applyFilters();
+    }
+  });
+
+// ============ FILTER RENDER ============
+function renderFilterBar() {
+  const bar = document.getElementById('filterBar');
+
+  const groups = [
+    { key:'district', label:'行政区', items:DISTRICTS, getCount: r => true },
+    { key:'project', label:'项目案名', items:PROJECTS, getCount: r => true },
+    { key:'type', label:'业态', items:TYPES, getCount: r => true },
+    { key:'area', label:'面积段(㎡)', items:AREA_BUCKETS, getCount: r => true },
+    { key:'bwCount', label:'面宽数量', items:['2','3','4'], getCount: r => true }
+  ];
+
+  bar.innerHTML = groups.map(g => `
+    <div class="filter-group" data-key="${g.key}">
+      <label>${g.label}</label>
+      <div class="filter-trigger" onclick="toggleDropdown(this)">全部</div>
+      <div class="filter-dropdown">
+        <div class="all-toggle" onclick="toggleAll(this)">全部</div>
+        ${g.items.map(item => `
+          <label class="filter-option">
+            <input type="checkbox" value="${item}" onchange="onFilterChange(this)">
+            <span>${item}</span>
+          </label>
+        `).join('')}
+      </div>
+    </div>
+  `).join('');
+
+  // Close dropdowns on outside click
+  document.addEventListener('click', function(e) {
+    if (!e.target.closest('.filter-group')) {
+      document.querySelectorAll('.filter-dropdown.show').forEach(d => d.classList.remove('show'));
+      document.querySelectorAll('.filter-trigger.active').forEach(t => t.classList.remove('active'));
+    }
+    // Close column filter dropdowns
+    if (!e.target.closest('.col-filter-dropdown') && !e.target.closest('.filter-icon')) {
+      document.querySelectorAll('.col-filter-dropdown.show').forEach(d => d.classList.remove('show'));
+      document.querySelectorAll('.filter-icon.active').forEach(i => i.classList.remove('active'));
+    }
+  });
+}
+
+function toggleDropdown(trigger) {
+  const dropdown = trigger.nextElementSibling;
+  const isOpen = dropdown.classList.contains('show');
+  document.querySelectorAll('.filter-dropdown.show').forEach(d => d.classList.remove('show'));
+  document.querySelectorAll('.filter-trigger.active').forEach(t => t.classList.remove('active'));
+  if (!isOpen) {
+    dropdown.classList.add('show');
+    trigger.classList.add('active');
+  }
+}
+
+function toggleAll(el) {
+  const container = el.parentElement;
+  const checkboxes = container.querySelectorAll('input[type=checkbox]');
+  const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+  checkboxes.forEach(cb => cb.checked = !allChecked);
+  onFilterChange(null);
+}
+
+function onFilterChange(_el) {
+  document.querySelectorAll('.filter-group').forEach(group => {
+    const key = group.dataset.key;
+    const checkboxes = group.querySelectorAll('input[type=checkbox]');
+    const checked = Array.from(checkboxes).filter(cb => cb.checked).map(cb => cb.value);
+    const trigger = group.querySelector('.filter-trigger');
+    if (checked.length === 0 || checked.length === checkboxes.length) {
+      state[key] = new Set();
+      trigger.textContent = '全部';
+    } else if (checked.length <= 2) {
+      state[key] = new Set(checked);
+      trigger.textContent = checked.join(', ');
+    } else {
+      state[key] = new Set(checked);
+      trigger.textContent = checked.length + ' 项';
+    }
+  });
+  applyFilters();
+}
+
+function applyFilters() {
+  // Apply table column filters on top of top-bar filters
+  let base = RAW_DATA;
+  // First apply top-bar filters
+  base = base.filter(r => {
+    if (state.district.size && !state.district.has(r.d)) return false;
+    if (state.project.size && !state.project.has(r.p)) return false;
+    if (state.type.size && !state.type.has(r.t)) return false;
+    if (state.area.size && !state.area.has(r.ag)) return false;
+    if (state.bwCount.size && !state.bwCount.has(String(r.c))) return false;
+    return true;
+  });
+  // Then apply column filters
+  filteredData = applySort(base.filter(r => {
+    for (const key of COL_FILTER_KEYS) {
+      const s = colFilters[key];
+      if (s.size === 0) continue; // no filter on this column
+      if (!s.has(key === 'c' ? String(r.c) : String(r[key] || ''))) return false;
+    }
+    return true;
+  }));
+  renderMetrics();
+  renderCharts();
+  renderTable();
+  updateStats();
+  rebuildColFilterDropdowns();
+}
+
+function toggleColFilter(key) {
+  const dd = document.getElementById('cf-' + key);
+  const isOpen = dd.classList.contains('show');
+  // Close all other dropdowns
+  document.querySelectorAll('.col-filter-dropdown.show').forEach(d => d.classList.remove('show'));
+  document.querySelectorAll('.filter-icon.active').forEach(i => i.classList.remove('active'));
+  if (!isOpen) {
+    populateColFilter(key);
+    dd.classList.add('show');
+    dd.previousElementSibling.classList.add('active');
+  }
+}
+
+function populateColFilter(key) {
+  const dd = document.getElementById('cf-' + key);
+  // Get unique values from current base (pre column-filter) data
+  const vals = [...new Set(
+    (state.district.size || state.project.size || state.type.size || state.area.size || state.bwCount.size
+      ? filteredDataRaw() : RAW_DATA)
+      .map(r => key === 'c' ? String(r.c) : String(r[key] || '—'))
+      .filter(v => v !== '')
+  )].sort();
+  const filterSet = colFilters[key];
+  const allChecked = filterSet.size === 0 || vals.every(v => filterSet.has(v));
+  dd.innerHTML = '<div class="cf-all" onclick="toggleColFilterAll(\x27'+key+'\x27)">' + (allChecked ? '☑ 全选' : '☐ 全选') + '</div>' +
+    vals.map(v =>
+      '<label class="cf-item"><input type="checkbox" value="'+v+'" ' +
+      (filterSet.size === 0 || filterSet.has(v) ? 'checked' : '') +
+      ' onchange="onColFilterChange(\x27'+key+'\x27,this)"><span>'+v+'</span></label>'
+    ).join('');
+}
+
+function toggleColFilterAll(key) {
+  const dd = document.getElementById('cf-' + key);
+  const allCb = dd.querySelector('.cf-all');
+  const allChecked = allCb.textContent.startsWith('☑');
+  const checkboxes = dd.querySelectorAll('.cf-item input');
+  checkboxes.forEach(cb => cb.checked = !allChecked);
+  colFilters[key] = allChecked ? new Set() : new Set(Array.from(checkboxes).map(cb => cb.value));
+  applyFilters();
+}
+
+function onColFilterChange(key, el) {
+  // When any checkbox changes, check if now all selected → reset filter, otherwise use checked set
+  const dd = document.getElementById('cf-' + key);
+  const checkboxes = dd.querySelectorAll('.cf-item input');
+  const checked = Array.from(checkboxes).filter(cb => cb.checked);
+  const all = Array.from(checkboxes);
+  if (checked.length === all.length) {
+    colFilters[key] = new Set(); // "all" = no filter
+  } else if (checked.length === 0) {
+    colFilters[key] = new Set(['__NONE__']); // dummy value so filter excludes all
+  } else {
+    colFilters[key] = new Set(checked.map(cb => cb.value));
+  }
+  applyFilters();
+}
+
+// Get data before column filtering (after top-bar filters only)
+function filteredDataRaw() {
+  return RAW_DATA.filter(r => {
+    if (state.district.size && !state.district.has(r.d)) return false;
+    if (state.project.size && !state.project.has(r.p)) return false;
+    if (state.type.size && !state.type.has(r.t)) return false;
+    if (state.area.size && !state.area.has(r.ag)) return false;
+    if (state.bwCount.size && !state.bwCount.has(String(r.c))) return false;
+    return true;
+  });
+}
+
+function rebuildColFilterDropdowns() {
+  // Repopulate open dropdowns so counts are current
+  document.querySelectorAll('.col-filter-dropdown.show').forEach(dd => {
+    const key = dd.id.replace('cf-', '');
+    populateColFilter(key);
+  });
+}
+
+function resetAllFilters() {
+  document.querySelectorAll('.filter-group input[type=checkbox]').forEach(cb => cb.checked = false);
+  document.querySelectorAll('.filter-trigger').forEach(t => t.textContent = '全部');
+  Object.values(state).forEach(s => s.clear());
+  COL_FILTER_KEYS.forEach(k => colFilters[k] = new Set());
+  applyFilters();
+}
+
+function updateStats() {
+  const match = filteredData.length;
+  document.getElementById('matchCount').textContent = match;
+  const detailEl = document.getElementById('detailCount');
+  if (detailEl) detailEl.textContent = `（${match} 条）`;
+
+  const activeFilters = Object.entries(state).filter(([k,v]) => v.size > 0);
+  document.getElementById('filterLabel').textContent =
+    activeFilters.length
+      ? activeFilters.map(([k,v]) => `${{'district':'行政区','project':'项目','type':'业态','area':'面积段','bwCount':'面宽数'}[k]}: ${[...v].join(',')}`).join(' · ')
+      : '全部数据';
+}
+
+// ============ SORT ============
+function sortTable(key) {
+  if (sortState.key === key) {
+    sortState.dir = sortState.dir === 'asc' ? 'desc' : sortState.dir === 'desc' ? 'none' : 'asc';
+  } else {
+    sortState.key = key;
+    sortState.dir = key === 'idx' ? 'asc' : 'asc';
+  }
+  applyFilters();
+}
+
+function applySort(arr) {
+  if (sortState.dir === 'none' || sortState.key === 'idx') return arr;
+  const sk = sortState.key, sd = sortState.dir;
+  return [...arr].sort((a, b) => {
+    let va, vb;
+    if (['c','l','m','b1','b2'].includes(sk)) {
+      va = parseFloat(a[sk]) || 0;
+      vb = parseFloat(b[sk]) || 0;
+    } else if (sk === 'a') {
+      va = parseInt(a[sk]) || 0;
+      vb = parseInt(b[sk]) || 0;
+    } else {
+      va = (a[sk] || '').toString();
+      vb = (b[sk] || '').toString();
+    }
+    if (va < vb) return sd === 'asc' ? -1 : 1;
+    if (va > vb) return sd === 'asc' ? 1 : -1;
+    return 0;
+  });
+}
+
+// ============ METRICS ============
+function calcStats(arr) {
+  const v = arr.filter(x => x != null && x > 0);
+  if (!v.length) return {min:null,max:null,avg:null,cnt:0};
+  return { min:Math.min(...v), max:Math.max(...v), avg:Math.round(v.reduce((a,b)=>a+b,0)/v.length), cnt:v.length };
+}
+
+function renderMetrics() {
+  const totalBw = filteredData.map(r => r.c).filter(x => x);
+  const living = filteredData.map(r => r.l);
+  const master = filteredData.map(r => r.m);
+  const bed1 = filteredData.map(r => r.b1);
+
+  const ts = calcStats(totalBw);
+  const ls = calcStats(living);
+  const ms = calcStats(master);
+  const bs = calcStats(bed1);
+
+  const dist = {2:0,3:0,4:0};
+  totalBw.forEach(v => { if (dist[v] !== undefined) dist[v]++; });
+  const t = totalBw.length || 1;
+
+  document.getElementById('metricsGrid').innerHTML = `
+    <div class="metric-card"><div class="label">总面宽区间</div><div class="value">${ts.min != null ? ts.min+'~'+ts.max : '—'}</div><div class="detail">平均 ${ts.avg != null ? ts.avg+' mm' : '—'} · ${ts.cnt} 条</div></div>
+    <div class="metric-card"><div class="label">客厅面宽区间</div><div class="value">${ls.min != null ? ls.min+'~'+ls.max : '—'}</div><div class="detail">平均 ${ls.avg != null ? ls.avg+' mm' : '—'} · ${ls.cnt} 条</div></div>
+    <div class="metric-card"><div class="label">主卧面宽区间</div><div class="value">${ms.min != null ? ms.min+'~'+ms.max : '—'}</div><div class="detail">平均 ${ms.avg != null ? ms.avg+' mm' : '—'} · ${ms.cnt} 条</div></div>
+    <div class="metric-card"><div class="label">次卧1面宽区间</div><div class="value">${bs.min != null ? bs.min+'~'+bs.max : '—'}</div><div class="detail">平均 ${bs.avg != null ? bs.avg+' mm' : '—'} · ${bs.cnt} 条</div></div>
+    <div class="metric-card"><div class="label">面宽数量分布</div><div class="value" style="font-size:16px">2面: ${dist[2]} / 3面: ${dist[3]} / 4面: ${dist[4]}</div><div class="detail">占比 ${Math.round(dist[2]/t*100)}% / ${Math.round(dist[3]/t*100)}% / ${Math.round(dist[4]/t*100)}%</div></div>
+  `;
+}
+
+// ============ CHARTS ============
+function renderCharts() {
+  renderBwCountChart();
+  renderBwCompareChart();
+  renderHistogram('chartLivingHist', filteredData.map(r => r.l).filter(x => x), '#378ADD', '客厅面宽');
+  renderHistogram('chartMasterHist', filteredData.map(r => r.m).filter(x => x), '#1D9E75', '主卧面宽');
+}
+
+function renderBwCountChart() {
+  const dist = {2:0,3:0,4:0};
+  filteredData.forEach(r => { if (r.c && dist[r.c] !== undefined) dist[r.c]++; });
+  const total = Object.values(dist).reduce((a,b)=>a+b,0) || 1;
+
+  if (charts.bwCount) charts.bwCount.destroy();
+  charts.bwCount = new Chart(document.getElementById('chartBwCount'), {
+    type: 'doughnut',
+    data: {
+      labels: ['2面宽', '3面宽', '4面宽'],
+      datasets: [{ data:[dist[2],dist[3],dist[4]], backgroundColor:['#B5D4F4','#5DCAA5','#FAC775'], borderWidth:0 }]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:true,
+      plugins: {
+        legend:{ position:'bottom', labels:{ font:{size:12}, padding:12 } },
+        datalabels: {
+          color:'#fff', font:{weight:'bold',size:13},
+          formatter:(v,ctx) => v > 0 ? v + '\n' + Math.round(v/total*100) + '%' : '',
+          anchor:'center', align:'center',
+          display: ctx => ctx.dataset.data[ctx.dataIndex] > 0
+        },
+        tooltip:{ callbacks:{ label:ctx => ctx.label + ': ' + ctx.raw + ' (' + Math.round(ctx.raw/total*100) + '%)' } }
+      }
+    }
+  });
+}
+
+function renderBwCompareChart() {
+  const living = filteredData.map(r => r.l).filter(x => x);
+  const master = filteredData.map(r => r.m).filter(x => x);
+  const bed1 = filteredData.map(r => r.b1).filter(x => x);
+  const avg = arr => arr.length ? Math.round(arr.reduce((a,b)=>a+b,0)/arr.length) : 0;
+  const allVals = [...living, ...master, ...bed1];
+  const yMax = allVals.length ? Math.max(...allVals) * 1.2 : 5000;
+
+  if (charts.bwCompare) charts.bwCompare.destroy();
+  charts.bwCompare = new Chart(document.getElementById('chartBwCompare'), {
+    type: 'bar',
+    data: {
+      labels: ['客厅', '主卧', '次卧1'],
+      datasets: [
+        { label:'最小值', data:[living.length?Math.min(...living):0, master.length?Math.min(...master):0, bed1.length?Math.min(...bed1):0], backgroundColor:'#B5D4F4', borderWidth:0, borderRadius:3 },
+        { label:'平均值', data:[avg(living), avg(master), avg(bed1)], backgroundColor:'#1D9E75', borderWidth:0, borderRadius:3 },
+        { label:'最大值', data:[living.length?Math.max(...living):0, master.length?Math.max(...master):0, bed1.length?Math.max(...bed1):0], backgroundColor:'#F09595', borderWidth:0, borderRadius:3 }
+      ]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:true,
+      scales:{ y:{ beginAtZero:true, max:yMax, ticks:{font:{size:11}}, grid:{color:'rgba(0,0,0,0.04)'} }, x:{ ticks:{font:{size:11}}, grid:{display:false} } },
+      plugins:{
+        legend:{ position:'bottom', labels:{font:{size:12}, padding:12} },
+        datalabels:{
+          color:'#2c2c2a', font:{weight:'bold',size:10},
+          anchor:'end', align:'end', offset:2,
+          formatter:v => v > 0 ? v : ''
+        },
+        tooltip:{ callbacks:{ label:ctx => ctx.dataset.label + ': ' + ctx.raw + ' mm' } }
+      }
+    }
+  });
+}
+
+function renderHistogram(canvasId, data, color, label) {
+  if (charts[canvasId]) charts[canvasId].destroy();
+  if (!data.length) return;
+
+  const step = 500;
+  const min = Math.floor(Math.min(...data) / step) * step;
+  const max = Math.ceil(Math.max(...data) / step) * step;
+  const bins = [], labels = [];
+  for (let i = min; i < max; i += step) {
+    labels.push((i/1000).toFixed(1)+'-'+((i+step)/1000).toFixed(1));
+    bins.push(data.filter(v => v >= i && v < i+step).length);
+  }
+  const yMax = Math.max(...bins) * 1.2 || 10;
+
+  charts[canvasId] = new Chart(document.getElementById(canvasId), {
+    type:'bar',
+    data:{ labels, datasets:[{ label:'数量', data:bins, backgroundColor:color, borderWidth:0, borderRadius:3, barThickness:30 }] },
+      options:{
+        responsive:true, maintainAspectRatio:true,
+        scales:{ y:{ beginAtZero:true, max:yMax, ticks:{font:{size:11},precision:0}, grid:{color:'rgba(0,0,0,0.04)'} }, x:{ ticks:{font:{size:10}}, grid:{display:false} } },
+        plugins:{
+          legend:{display:false},
+          datalabels:{
+            color:'#2c2c2a', font:{weight:'bold',size:10},
+            anchor:'end', align:'end', offset:2,
+            formatter:v => v > 0 ? v : ''
+          },
+          tooltip:{ callbacks:{ label:ctx => ctx.label + 'm: ' + ctx.raw + ' 个' } }
+        }
+    }
+  });
+}
+
+// ============ TABLE ============
+function renderTable() {
+  // Update sort arrows
+  document.querySelectorAll('.sort-arrow').forEach(el => {
+    const th = el.closest('th');
+    const key = th && th.dataset.sort;
+    if (key === sortState.key && sortState.dir !== 'none') {
+      el.className = 'sort-arrow ' + sortState.dir;
+      el.textContent = sortState.dir === 'asc' ? '▲' : '▼';
+    } else {
+      el.className = 'sort-arrow';
+      el.textContent = '⇅';
+    }
+  });
+
+  const tableBody = document.getElementById('tableBody');
+  if (!filteredData.length) {
+    tableBody.innerHTML = '<tr><td colspan="12" style="text-align:center;padding:30px;color:#888">无匹配数据</td></tr>';
+    return;
+  }
+  tableBody.innerHTML = filteredData.map((r, i) => `
+      <tr>
+        <td style="color:#888;font-size:11px">${i + 1}</td>
+        <td>${r.d}</td>
+        <td>${r.p}</td>
+        <td>${r.o || '—'}</td>
+        <td>${r.t || '—'}</td>
+        <td>${r.a}</td>
+        <td><span class="tag tag-${r.c}">${r.c}面宽</span></td>
+        <td>${r.l || '—'}</td>
+        <td>${r.m || '—'}</td>
+        <td>${r.b1 || '—'}</td>
+        <td>${r.b2 || '—'}</td>
+        <td>${r.img ? '<img class="img-thumb" src="./images/'+r.img+'" onclick="openLightbox(this.src)" alt="户型图">' : '<div class="img-placeholder">无图</div>'}</td>
+      </tr>
+    `).join('');
+}
+
+init();
+
+// ============ LIGHTBOX ============
+function openLightbox(src) {
+  document.getElementById('lightboxImg').src = src;
+  document.getElementById('lightbox').classList.add('show');
+}
+function closeLightbox(e) {
+  if (!e || e.target === e.currentTarget || e.target.classList.contains('close')) {
+    document.getElementById('lightbox').classList.remove('show');
+  }
+}
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') document.getElementById('lightbox').classList.remove('show');
+});
+</script>
+</body>
+</html>
