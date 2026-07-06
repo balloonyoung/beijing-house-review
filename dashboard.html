@@ -59,18 +59,19 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Hira
 /* Table */
 .table-card{background:#fff;border:.5px solid rgba(0,0,0,.08);border-radius:12px;padding:14px;overflow-x:auto}
 .table-card h3{font-size:13px;font-weight:500;color:#2c2c2a;margin-bottom:10px}
-table{width:100%;border-collapse:collapse;font-size:12px}
-th{background:#f1efe8;color:#5f5e5a;font-weight:500;padding:8px 12px;text-align:left;border-bottom:.5px solid rgba(0,0,0,.08);white-space:nowrap}
-td{padding:6px 12px;border-bottom:.5px solid rgba(0,0,0,.04);color:#2c2c2a;white-space:nowrap}
+table{width:100%;border-collapse:collapse;font-size:11px}
+th{background:#f1efe8;color:#5f5e5a;font-weight:500;padding:8px 8px;text-align:left;border-bottom:.5px solid rgba(0,0,0,.08);white-space:nowrap}
+th[data-sort]{cursor:pointer;user-select:none}
+td{padding:6px 8px;border-bottom:.5px solid rgba(0,0,0,.04);color:#2c2c2a;white-space:nowrap}
 tr:hover td{background:#fafaf7}
-.sortable{cursor:pointer;user-select:none;white-space:nowrap;padding:4px 0;display:inline-flex;align-items:center;gap:6px}
+.sortable{cursor:pointer;user-select:none;white-space:nowrap;padding:4px 0;display:inline-flex;align-items:center;gap:4px}
 .sortable:hover{background:#e5e3db}
-.sort-arrow{font-size:13px;color:#aaa;width:18px;text-align:center}
+.sort-arrow{font-size:12px;color:#aaa;width:16px;text-align:center}
 .sort-arrow.asc{color:#378ADD}
 .sort-arrow.desc{color:#378ADD}
 
 /* Column filter icon — bigger click area */
-.filter-icon{margin-left:6px;cursor:pointer;font-size:15px;color:#999;user-select:none;display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:4px;background:transparent}
+.filter-icon{margin-left:4px;cursor:pointer;font-size:14px;color:#999;user-select:none;display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:4px;background:transparent}
 .filter-icon:hover,.filter-icon.active{color:#fff;background:#378ADD}
 
 /* Column filter dropdown */
@@ -88,9 +89,9 @@ tr:hover td{background:#fafaf7}
 .tag-4{background:#faeeda;color:#854f0b}
 
 /* 户型图缩略图 */
-.img-thumb{width:60px;height:60px;object-fit:cover;border-radius:4px;cursor:pointer;border:.5px solid rgba(0,0,0,.08);transition:opacity .15s}
+.img-thumb{width:50px;height:50px;object-fit:cover;border-radius:4px;cursor:pointer;border:.5px solid rgba(0,0,0,.08);transition:opacity .15s}
 .img-thumb:hover{opacity:.8}
-.img-placeholder{width:60px;height:60px;background:#f1efe8;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:10px;color:#bbb}
+.img-placeholder{width:50px;height:50px;background:#f1efe8;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:10px;color:#bbb}
 
 /* Lightbox overlay */
 .lightbox{display:none;position:fixed;z-index:9999;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.75);align-items:center;justify-content:center}
@@ -129,17 +130,17 @@ tr:hover td{background:#fafaf7}
     <h3>明细数据 <span id="detailCount" style="font-weight:400;color:#888;font-size:12px">（172 条）</span></h3>
     <div style="position:relative">
     <table><thead><tr>
-      <th data-sort="idx" class="sortable" onclick="sortTable('idx')"># <span class="sort-arrow"></span></th>
-      <th data-sort="d" data-filter="d" class="sortable" onclick="sortTable('d')">行政区 <span class="sort-arrow"></span><span class="filter-icon" onclick="event.stopPropagation();toggleColFilter('d')">▾</span><div class="col-filter-dropdown" id="cf-d"></div></th>
-      <th data-sort="p" data-filter="p" class="sortable" onclick="sortTable('p')">项目案名 <span class="sort-arrow"></span><span class="filter-icon" onclick="event.stopPropagation();toggleColFilter('p')">▾</span><div class="col-filter-dropdown" id="cf-p"></div></th>
-      <th data-sort="o" data-filter="o" class="sortable" onclick="sortTable('o')">首开时间 <span class="sort-arrow"></span><span class="filter-icon" onclick="event.stopPropagation();toggleColFilter('o')">▾</span><div class="col-filter-dropdown" id="cf-o"></div></th>
-      <th data-sort="t" data-filter="t" class="sortable" onclick="sortTable('t')">业态 <span class="sort-arrow"></span><span class="filter-icon" onclick="event.stopPropagation();toggleColFilter('t')">▾</span><div class="col-filter-dropdown" id="cf-t"></div></th>
-      <th data-sort="a" data-filter="a" class="sortable" onclick="sortTable('a')">面积(㎡) <span class="sort-arrow"></span><span class="filter-icon" onclick="event.stopPropagation();toggleColFilter('a')">▾</span><div class="col-filter-dropdown" id="cf-a"></div></th>
-      <th data-sort="c" data-filter="c" class="sortable" onclick="sortTable('c')">面宽数 <span class="sort-arrow"></span><span class="filter-icon" onclick="event.stopPropagation();toggleColFilter('c')">▾</span><div class="col-filter-dropdown" id="cf-c"></div></th>
-      <th data-sort="l" data-filter="l" class="sortable" onclick="sortTable('l')">客厅面宽 <span class="sort-arrow"></span><span class="filter-icon" onclick="event.stopPropagation();toggleColFilter('l')">▾</span><div class="col-filter-dropdown" id="cf-l"></div></th>
-      <th data-sort="m" data-filter="m" class="sortable" onclick="sortTable('m')">主卧面宽 <span class="sort-arrow"></span><span class="filter-icon" onclick="event.stopPropagation();toggleColFilter('m')">▾</span><div class="col-filter-dropdown" id="cf-m"></div></th>
-      <th data-sort="b1" data-filter="b1" class="sortable" onclick="sortTable('b1')">次卧1面宽 <span class="sort-arrow"></span><span class="filter-icon" onclick="event.stopPropagation();toggleColFilter('b1')">▾</span><div class="col-filter-dropdown" id="cf-b1"></div></th>
-      <th data-sort="b2" data-filter="b2" class="sortable" onclick="sortTable('b2')">次卧2面宽 <span class="sort-arrow"></span><span class="filter-icon" onclick="event.stopPropagation();toggleColFilter('b2')">▾</span><div class="col-filter-dropdown" id="cf-b2"></div></th>
+      <th data-sort="idx" onclick="sortTable('idx')"><span class="sortable"># <span class="sort-arrow"></span></span></th>
+      <th data-sort="d" data-filter="d" onclick="sortTable('d')"><span class="sortable">行政区 <span class="sort-arrow"></span></span><span class="filter-icon" onclick="event.stopPropagation();toggleColFilter('d')">▾</span><div class="col-filter-dropdown" id="cf-d"></div></th>
+      <th data-sort="p" data-filter="p" onclick="sortTable('p')"><span class="sortable">项目案名 <span class="sort-arrow"></span></span><span class="filter-icon" onclick="event.stopPropagation();toggleColFilter('p')">▾</span><div class="col-filter-dropdown" id="cf-p"></div></th>
+      <th data-sort="o" data-filter="o" onclick="sortTable('o')"><span class="sortable">首开时间 <span class="sort-arrow"></span></span><span class="filter-icon" onclick="event.stopPropagation();toggleColFilter('o')">▾</span><div class="col-filter-dropdown" id="cf-o"></div></th>
+      <th data-sort="t" data-filter="t" onclick="sortTable('t')"><span class="sortable">业态 <span class="sort-arrow"></span></span><span class="filter-icon" onclick="event.stopPropagation();toggleColFilter('t')">▾</span><div class="col-filter-dropdown" id="cf-t"></div></th>
+      <th data-sort="a" data-filter="a" onclick="sortTable('a')"><span class="sortable">面积(㎡) <span class="sort-arrow"></span></span><span class="filter-icon" onclick="event.stopPropagation();toggleColFilter('a')">▾</span><div class="col-filter-dropdown" id="cf-a"></div></th>
+      <th data-sort="c" data-filter="c" onclick="sortTable('c')"><span class="sortable">面宽数 <span class="sort-arrow"></span></span><span class="filter-icon" onclick="event.stopPropagation();toggleColFilter('c')">▾</span><div class="col-filter-dropdown" id="cf-c"></div></th>
+      <th data-sort="l" data-filter="l" onclick="sortTable('l')"><span class="sortable">客厅面宽 <span class="sort-arrow"></span></span><span class="filter-icon" onclick="event.stopPropagation();toggleColFilter('l')">▾</span><div class="col-filter-dropdown" id="cf-l"></div></th>
+      <th data-sort="m" data-filter="m" onclick="sortTable('m')"><span class="sortable">主卧面宽 <span class="sort-arrow"></span></span><span class="filter-icon" onclick="event.stopPropagation();toggleColFilter('m')">▾</span><div class="col-filter-dropdown" id="cf-m"></div></th>
+      <th data-sort="b1" data-filter="b1" onclick="sortTable('b1')"><span class="sortable">次卧1面宽 <span class="sort-arrow"></span></span><span class="filter-icon" onclick="event.stopPropagation();toggleColFilter('b1')">▾</span><div class="col-filter-dropdown" id="cf-b1"></div></th>
+      <th data-sort="b2" data-filter="b2" onclick="sortTable('b2')"><span class="sortable">次卧2面宽 <span class="sort-arrow"></span></span><span class="filter-icon" onclick="event.stopPropagation();toggleColFilter('b2')">▾</span><div class="col-filter-dropdown" id="cf-b2"></div></th>
       <th>户型图</th>
     </tr></thead><tbody id="tableBody"></tbody></table>
     </div>
@@ -180,7 +181,9 @@ let sortState = { key:'idx', dir:'asc' };
 const colFilters = {};
 const COL_FILTER_KEYS = ['d','p','o','t','a','c','l','m','b1','b2'];
 COL_FILTER_KEYS.forEach(k => colFilters[k] = new Set());
-Chart.register(ChartDataLabels);
+if (typeof Chart !== 'undefined' && typeof ChartDataLabels !== 'undefined') {
+  Chart.register(ChartDataLabels);
+}
 
 // ============ INIT ============
 function init() {
@@ -306,7 +309,7 @@ function applyFilters() {
     return true;
   }));
   renderMetrics();
-  renderCharts();
+  try { renderCharts(); } catch (e) { console.warn('图表渲染失败（可能 Chart.js 未加载）', e); }
   renderTable();
   updateStats();
   rebuildColFilterDropdowns();
@@ -476,6 +479,7 @@ function renderMetrics() {
 
 // ============ CHARTS ============
 function renderCharts() {
+  if (typeof Chart === 'undefined') return;
   renderBwCountChart();
   renderBwCompareChart();
   renderHistogram('chartLivingHist', filteredData.map(r => r.l).filter(x => x), '#378ADD', '客厅面宽');
